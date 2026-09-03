@@ -1,0 +1,943 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Sonar Hunt - Akustik Laut</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body {
+    width: 100%; height: 100%;
+    overflow: hidden;
+    background: #04121f;
+    font-family: 'Segoe UI', Roboto, Arial, sans-serif;
+    color: #eaf6ff;
+    -webkit-user-select: none; user-select: none;
+    touch-action: manipulation;
+  }
+  #app {
+    position: relative;
+    width: 100vw; height: 100vh;
+    overflow: hidden;
+  }
+  .screen {
+    position: absolute; inset: 0;
+    display: none;
+    flex-direction: column;
+    align-items: center; justify-content: center;
+    width: 100%; height: 100%;
+    background-size: cover; background-position: center;
+    padding: 4vh 4vw;
+  }
+  .screen.active { display: flex; }
+
+  /* ---------- Rotate warning ---------- */
+  #rotateWarning {
+    position: fixed; inset: 0; z-index: 999;
+    background: #04121f;
+    display: none;
+    flex-direction: column; align-items: center; justify-content: center;
+    text-align: center; gap: 16px;
+  }
+  @media (orientation: portrait) {
+    #rotateWarning { display: flex; }
+    #app { display: none; }
+  }
+  .rotateIcon { font-size: 48px; animation: spin 2s linear infinite; }
+  @keyframes spin { from { transform: rotate(0deg);} to { transform: rotate(360deg);} }
+
+  /* ---------- Login ---------- */
+  #screen-login {
+    background: linear-gradient(160deg, #062338, #04121f 70%);
+  }
+  .panel {
+    background: rgba(4, 20, 34, 0.72);
+    border: 1px solid rgba(120,200,255,0.35);
+    border-radius: 14px;
+    padding: 28px 32px;
+    width: min(92vw, 420px);
+    text-align: center;
+    box-shadow: 0 0 40px rgba(0,180,255,0.15);
+  }
+  .panel h1 {
+    font-size: clamp(20px, 3vw, 28px);
+    letter-spacing: 1px;
+    margin-bottom: 4px;
+    color: #8fe3ff;
+  }
+  .panel .sub {
+    font-size: 12px;
+    color: #7fa8c2;
+    margin-bottom: 18px;
+  }
+  .field { margin-bottom: 12px; text-align: left; }
+  .field label { display: block; font-size: 11px; color: #9fd2ea; margin-bottom: 4px; letter-spacing: 0.5px; }
+  .field input {
+    width: 100%; padding: 10px 12px;
+    background: rgba(255,255,255,0.06);
+    border: 1px solid rgba(120,200,255,0.3);
+    border-radius: 8px;
+    color: #eaf6ff; font-size: 15px;
+    outline: none;
+  }
+  .field input:focus { border-color: #4fd1ff; }
+  .errorMsg {
+    font-size: 12px; color: #ff8a8a; min-height: 16px; margin-bottom: 8px;
+  }
+  .btn {
+    display: inline-block;
+    padding: 11px 26px;
+    background: linear-gradient(180deg,#1ea8e0,#0f7fb3);
+    border: none; border-radius: 8px;
+    color: #fff; font-size: 15px; font-weight: 600;
+    letter-spacing: 0.5px;
+    cursor: pointer;
+    box-shadow: 0 4px 14px rgba(15,127,179,0.5);
+  }
+  .btn:active { transform: scale(0.97); }
+  .btn.secondary {
+    background: rgba(255,255,255,0.08);
+    border: 1px solid rgba(255,255,255,0.25);
+    box-shadow: none;
+  }
+  .studentTag {
+    margin-top: 14px; font-size: 13px; color: #bfe9ff;
+    min-height: 18px;
+  }
+
+  /* ---------- Menu ---------- */
+  #screen-menu {
+    background: linear-gradient(180deg, rgba(4,18,31,0.35), rgba(4,18,31,0.75)), url('img/bg_menu.jpg');
+    background-size: cover;
+    background-position: center;
+  }
+  #screen-menu h1 { font-size: clamp(24px,4vw,36px); color: #dff6ff; margin-bottom: 6px; letter-spacing: 1px; }
+  #screen-menu .sub { color: #9fd2ea; font-size: 13px; margin-bottom: 26px; }
+  #welcomeName { color: #4fd1ff; font-weight: 600; }
+
+  /* ---------- Map ---------- */
+  #screen-map {
+    background: linear-gradient(180deg,#03101c,#04121f);
+  }
+  #screen-map h2 { font-size: clamp(18px,2.6vw,24px); margin-bottom: 4px; color:#dff6ff; }
+  #screen-map .sub { font-size: 12px; color: #7fa8c2; margin-bottom: 18px; }
+  .mapWrap {
+    position: relative;
+    width: min(90vw, 640px);
+    aspect-ratio: 657 / 615;
+    border-radius: 12px;
+    overflow: hidden;
+    border: 1px solid rgba(120,200,255,0.3);
+    background: #0a2f4a;
+  }
+  .mapWrap img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .zonePin {
+    position: absolute;
+    width: 34px; height: 34px;
+    border-radius: 50%;
+    background: rgba(255,140,60,0.9);
+    border: 3px solid #fff;
+    box-shadow: 0 0 0 6px rgba(255,140,60,0.25);
+    cursor: pointer;
+    transform: translate(-50%,-50%);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 15px;
+    animation: pulsePin 1.6s ease-in-out infinite;
+  }
+  @keyframes pulsePin {
+    0%,100% { box-shadow: 0 0 0 6px rgba(255,140,60,0.25); }
+    50% { box-shadow: 0 0 0 12px rgba(255,140,60,0.08); }
+  }
+  .zoneLabel {
+    position: absolute;
+    transform: translate(-50%, 6px);
+    top: 100%;
+    font-size: 11px;
+    color: #fff;
+    background: rgba(0,0,0,0.55);
+    padding: 2px 7px;
+    border-radius: 6px;
+    white-space: nowrap;
+    pointer-events: none;
+  }
+
+  /* ---------- Game screen ---------- */
+  #screen-game {
+    justify-content: flex-end;
+    padding: 0;
+    background-size: cover;
+    background-position: center;
+  }
+  .hud {
+    position: absolute; top: 0; left: 0; right: 0;
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 12px 16px;
+    background: linear-gradient(180deg, rgba(0,0,0,0.55), transparent);
+    z-index: 5;
+    font-size: 13px;
+  }
+  .hudBox {
+    background: rgba(0,0,0,0.4);
+    border: 1px solid rgba(120,200,255,0.3);
+    border-radius: 8px;
+    padding: 6px 12px;
+  }
+  .hudBox b { color: #4fd1ff; }
+  #scoreVal { color: #7dffb0; font-weight: 700; }
+
+  .questionBox {
+    position: absolute;
+    top: 58px; left: 50%;
+    transform: translateX(-50%);
+    width: min(94vw, 560px);
+    background: rgba(2,14,24,0.82);
+    border: 1px solid rgba(120,200,255,0.4);
+    border-radius: 12px;
+    padding: 12px 16px;
+    text-align: center;
+    z-index: 5;
+  }
+  #qText { font-size: clamp(15px,2vw,19px); margin-bottom: 10px; color: #eaf6ff; }
+  .optRow { display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; }
+  .optBtn {
+    flex: 1 1 28%;
+    min-width: 90px;
+    padding: 9px 8px;
+    background: rgba(255,255,255,0.08);
+    border: 1px solid rgba(120,200,255,0.35);
+    border-radius: 8px;
+    color: #eaf6ff; font-size: 14px;
+    cursor: pointer;
+  }
+  .optBtn:active { transform: scale(0.96); }
+  .optBtn.correct { background: rgba(90,220,140,0.35); border-color: #5adc8c; }
+  .optBtn.wrong { background: rgba(230,80,80,0.35); border-color: #e65050; }
+
+  .cockpitLayer {
+    position: absolute; inset: 0;
+    width: 100%; height: 100%;
+    object-fit: cover;
+    object-position: center bottom;
+    z-index: 3;
+    pointer-events: none;
+  }
+  .zoneBgLayer {
+    position: absolute; inset: 0;
+    width: 100%; height: 100%;
+    object-fit: cover;
+    z-index: 1;
+  }
+
+  .sonarRing {
+    position: absolute;
+    left: 50%; top: 62%;
+    width: 10px; height: 10px;
+    border: 3px solid #4fd1ff;
+    border-radius: 50%;
+    transform: translate(-50%,-50%);
+    opacity: 0;
+    z-index: 4;
+    pointer-events: none;
+  }
+  .sonarRing.ping {
+    animation: sonarPing 0.9s ease-out;
+  }
+  @keyframes sonarPing {
+    0% { width: 10px; height: 10px; opacity: 0.9; }
+    100% { width: 340px; height: 340px; opacity: 0; }
+  }
+
+  .objectPopup {
+    position: absolute;
+    left: 50%; top: 60%;
+    transform: translate(-50%,-50%);
+    z-index: 6;
+    text-align: center;
+    padding: 10px 18px;
+    background: rgba(4,20,34,0.9);
+    border: 1px solid rgba(120,200,255,0.5);
+    border-radius: 10px;
+    opacity: 0;
+    pointer-events: none;
+  }
+  .objectPopup.show { animation: popShow 1.4s ease-out forwards; }
+  @keyframes popShow {
+    0% { opacity: 0; transform: translate(-50%,-40%) scale(0.7); }
+    15% { opacity: 1; transform: translate(-50%,-50%) scale(1); }
+    80% { opacity: 1; }
+    100% { opacity: 0; transform: translate(-50%,-60%) scale(1); }
+  }
+  .objectPopup .icon { font-size: 30px; }
+  .objectPopup .val { font-size: 15px; font-weight: 700; }
+
+  .feedbackFlash {
+    position: absolute; inset: 0; z-index: 7; pointer-events: none; opacity: 0;
+  }
+  .feedbackFlash.wrong { background: rgba(220,50,50,0.25); animation: flashOut 0.5s ease-out; }
+  .feedbackFlash.right { background: rgba(60,220,140,0.2); animation: flashOut 0.5s ease-out; }
+  @keyframes flashOut { 0% { opacity: 1; } 100% { opacity: 0; } }
+
+  /* ---------- Result ---------- */
+  #screen-result {
+    background: linear-gradient(180deg,#0a3a5c,#04121f 85%);
+  }
+  #screen-result h1 { font-size: clamp(22px,3.4vw,32px); color: #dff6ff; margin-bottom: 6px; }
+  .finalScore {
+    font-size: clamp(38px,6vw,56px);
+    color: #7dffb0; font-weight: 800;
+    margin: 12px 0;
+  }
+  .finalSub { color: #9fd2ea; font-size: 13px; margin-bottom: 24px; }
+
+  .row { display: flex; gap: 12px; margin-top: 14px; }
+  .hidden { display: none !important; }
+</style>
+</head>
+<body>
+
+<div id="rotateWarning">
+  <div class="rotateIcon">&#8635;</div>
+  <div>Putar HP kamu ke posisi mendatar (landscape) untuk bermain</div>
+</div>
+
+<div id="app">
+
+  <!-- LOGIN -->
+  <div class="screen active" id="screen-login">
+    <div class="panel">
+      <h1>SONAR HUNT</h1>
+      <div class="sub">Ekspedisi Akustik Bawah Laut</div>
+
+      <div class="field">
+        <label for="inputNim">NIM</label>
+        <input type="text" id="inputNim" inputmode="numeric" placeholder="Masukkan NIM kamu">
+      </div>
+      <div class="studentTag" id="studentTag"></div>
+
+      <div class="field">
+        <label for="inputPw">Password</label>
+        <input type="password" id="inputPw" placeholder="Masukkan password">
+      </div>
+
+      <div class="errorMsg" id="loginError"></div>
+      <button class="btn" id="btnLogin">Login</button>
+    </div>
+  </div>
+
+  <!-- MENU -->
+  <div class="screen" id="screen-menu">
+    <h1>Selamat datang, <span id="welcomeName">Kadet</span></h1>
+    <div class="sub">Siap memulai ekspedisi sonar akustik laut?</div>
+    <button class="btn" id="btnToMap">Mulai Bermain</button>
+    <button class="btn secondary" id="btnLogout" style="margin-top:10px;">Keluar</button>
+  </div>
+
+  <!-- MAP -->
+  <div class="screen" id="screen-map">
+    <h2>Pilih Zona Laut</h2>
+    <div class="sub">Ketuk penanda untuk memilih lokasi ekspedisi</div>
+    <div class="mapWrap" id="mapWrap">
+      <img src="img/map_zones.jpg" alt="Peta Samudra Hindia" id="mapImg">
+      <div class="zonePin" id="pinAntartika" style="left:48%; top:88%;">1
+        <div class="zoneLabel">Zona Antartika</div>
+      </div>
+      <div class="zonePin" id="pinMadagaskar" style="left:14%; top:38%;">2
+        <div class="zoneLabel">Zona Madagaskar</div>
+      </div>
+      <div class="zonePin" id="pinAustralia" style="left:80%; top:52%;">3
+        <div class="zoneLabel">Zona Australia</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- GAME -->
+  <div class="screen" id="screen-game">
+    <div class="hud">
+      <div class="hudBox">Waktu: <b id="timerVal">60</b>s</div>
+      <div class="hudBox">Skor: <span id="scoreVal">Rp 0</span></div>
+    </div>
+
+    <div class="questionBox" id="questionBox">
+      <div id="qText">Soal akan muncul di sini</div>
+      <div class="optRow" id="optRow"></div>
+    </div>
+
+    <img class="zoneBgLayer" id="zoneBgImg" src="" alt="Background zona laut">
+    <div class="sonarRing" id="sonarRing"></div>
+    <div class="objectPopup" id="objectPopup">
+      <div class="icon" id="objIcon">🌊</div>
+      <div class="val" id="objVal">+Rp 0</div>
+    </div>
+    <div class="feedbackFlash" id="feedbackFlash"></div>
+    <img class="cockpitLayer" id="cockpitImg" src="img/cockpit.png" alt="Dalam kapal">
+  </div>
+
+  <!-- RESULT -->
+  <div class="screen" id="screen-result">
+    <h1>Ekspedisi Selesai</h1>
+    <div class="finalScore" id="finalScore">Rp 0</div>
+    <div class="finalSub" id="finalSub">Total nilai objek yang berhasil kamu temukan</div>
+    <div class="row">
+      <button class="btn" id="btnPlayAgain">Main Lagi</button>
+      <button class="btn secondary" id="btnBackMenu">Kembali ke Menu</button>
+    </div>
+  </div>
+
+</div>
+
+<script>
+/* ============ DATA NIM MAHASISWA (dari data yang diberikan) ============ */
+const VALID_NIMS = [
+"08051182530001","08051182530002","08051182530003","08051182530004","08051182530005",
+"08051182530006","08051182530007","08051182530008","08051182530009","08051182530010",
+"08051182530011","08051182530012","08051182530013","08051182530014","08051182530015",
+"08051182530016","08051182530017","08051182530018","08051182530019","08051182530020",
+"08051182530021","08051182530022","08051182530023","08051282530024","08051282530025",
+"08051282530026","08051282530027","08051282530028","08051282530029","08051282530030",
+"08051282530031","08051282530032","08051282530033","08051282530034","08051282530035",
+"08051282530036","08051282530037","08051282530038","08051282530039","08051282530040",
+"08051282530041","08051282530042","08051282530043","08051282530044","08051282530045",
+"08051282530046","08051282530047","08051282530048","08051282530049","08051282530050",
+"08051282530051","08051282530052","08051282530053","08051282530054","08051282530055",
+"08051282530056","08051282530057","08051282530058","08051282530059","08051282530060",
+"08051282530061","08051282530062","08051282530063","08051282530064","08051282530065",
+"08051282530066","08051282530067","08051282530068","08051282530069","08051282530070",
+"08051282530071","08051282530072","08051382530073","08051382530074","08051382530075",
+"08051382530076","08051382530077","08051382530078","08051382530079","08051382530080",
+"08051382530081","08051382530082","08051382530083","08051382530084","08051382530085",
+"08051382530086","08051382530087","08051382530088","08051382530089","08051382530090",
+"08051382530091","08051382530092","08051382530093","08051382530094","08051382530095",
+"08051382530096","08051382530097","08051382530098","08051382530099","08051382530100",
+"08051382530101","08051382530102","08051382530103","08051382530104","08051382530105",
+"08051382530106","08051382530107","08051382530108","08051382530109","08051382530110",
+"08051382530111","08051382530112","08051382530113","08051382530114","08051382530115",
+"08051382530116","08051382530117","08051382530118","08051382530119","08051382530120",
+"08051382530121","08051382530122","08051382530123","08051382530124","08051382530125",
+"08051382530126","08051382530127","08051382530128","08051382530129"
+];
+
+const STUDENT_NAMES = {
+"08051182530001":"NADIMAH ALIFAH","08051182530002":"ANDI MAULANA","08051182530003":"M. AL AZIIZ NADISYA PUTRA",
+"08051182530004":"IMTIYAZ FITHRO","08051182530005":"NAFISHA","08051182530006":"ATHAYA CALLISTA MODESTY",
+"08051182530007":"AYUDYA RATU ILMI","08051182530008":"WANDO NATANSYAH","08051182530009":"ADITTYA TRI WIGUNA",
+"08051182530010":"MAIKE RENDI","08051182530011":"DESTRI ISABELA","08051182530012":"NAMIRA MUTHMAINAH",
+"08051182530013":"ZAHRA SALSABILA","08051182530014":"MUHAMMAD RIDWAN HAMIDY","08051182530015":"ANISA RAHMA ANGGRAENI",
+"08051182530016":"RM. RAFI ALIYAN ROHIM","08051182530017":"M. BANI HARLIANSYAH","08051182530018":"RAFLY YOUAN SANDOVICH",
+"08051182530019":"NAFIIS ADNAN","08051182530020":"DIANA KRISTINA","08051182530021":"ELAN SITI BASITHU RAMADHAN",
+"08051182530022":"FADLY ABDURRAHMAN","08051182530023":"MUHAMMAD RIZKY RAMADHAN","08051282530024":"M. RADITYA WARDANA",
+"08051282530025":"NUR SALSA NABILA","08051282530026":"RASYA RAMADHANI","08051282530027":"SULTHAN RAHMAD ALBANI",
+"08051282530028":"ELISABETH NOVEARLY PABAWARI","08051282530029":"ARIZKY PRAYOGA","08051282530030":"AGUNG D.S. SIMAMORA",
+"08051282530031":"SONIA ADELIA","08051282530032":"DEBBY JUANDI PUTRA","08051282530033":"ANJAR REZPIVARESI",
+"08051282530034":"NABILLAH AZZAHRA","08051282530035":"MUHAMMAD NABIL","08051282530036":"MUHAMMAD RAFI PRATAMA",
+"08051282530037":"KASIHCA RADYA KANAHAYA","08051282530038":"LUWGIA ERNALYNA","08051282530039":"ZAM ZAM KHOIRIYAH",
+"08051282530040":"SRI NUR RAHMAWATI","08051282530041":"MUHAMAD AZRIL","08051282530042":"GAIZA NAUVALIANDRI",
+"08051282530043":"ASTA PUTRI SYAWALUNA","08051282530044":"CHRISTINA ANGEL","08051282530045":"SUCI RAMADHANIA",
+"08051282530046":"MICHA NICOLAUS HASIBUAN","08051282530047":"MAZIYYAH SALSABILA","08051282530048":"AGIL RIVANY",
+"08051282530049":"CINTHIA NURSYIFA MAULIDIA","08051282530050":"FELYCIA VERONICA","08051282530051":"M. RADEN WIJAYA",
+"08051282530052":"SISKA","08051282530053":"VARREL SYAHRAN NAJA","08051282530054":"MUHAMMAD MAHSYA ARRAFI",
+"08051282530055":"MUHAMMAD RIZKY SYA'BAN","08051282530056":"HESEKIEL SIMON PAULUS PARDEDE","08051282530057":"M. DAFFI SUTRA",
+"08051282530058":"DIAH AYU LESTARI","08051282530059":"ALIMAH MUTHIAH","08051282530060":"MUHAMMAD PARSYAH",
+"08051282530061":"SEPTA HENGGRAINI","08051282530062":"SYAKILA PUTRI RAHMADHANI","08051282530063":"AZIZAH DWI MULIA RISYA PUTRI",
+"08051282530064":"ROBINSAR NAPITUPULU","08051282530065":"OLA AULIA","08051282530066":"KHOIRUNNISA",
+"08051282530067":"MUHAMMAD KEVIN MADANI","08051282530068":"AHMAD EZAR IRWANSYAH","08051282530069":"SYANIATUN NADILA",
+"08051282530070":"RIKI RINALDO","08051282530071":"ALYA SAKINAH AZZAHRA","08051282530072":"MUHAMMAD FARIZILZA AZZIKRA BASNAN",
+"08051382530073":"BAYU SAPUTRA","08051382530074":"DUTHA CHANDRA","08051382530075":"SABILA ZAHRA MAULIDINA",
+"08051382530076":"REY VALDO","08051382530077":"NASYWA NABIILAH DESWANI","08051382530078":"FELIX BARAJA TAMPUBOLON",
+"08051382530079":"PUTRI MAYAZA","08051382530080":"M. HARI TRIANDANA","08051382530081":"FADRIAN OKTISKA",
+"08051382530082":"MUHAMMAD RAYHAN THAMRIN","08051382530083":"VENNA MELANDA","08051382530084":"MUHAMMAD FAUZAN",
+"08051382530085":"NADIA FATRISIA","08051382530086":"IMMANUEL BASTANTA TAMBA","08051382530087":"NADELI",
+"08051382530088":"M. RASTHA ADHWA FALAH","08051382530089":"ASEP SUBHAN RIFANDA","08051382530090":"RIZKI AMANDA",
+"08051382530091":"MUHAMMAD YUNUS","08051382530092":"NAZRUL GABRIEL","08051382530093":"M. BAGAS PERDANA",
+"08051382530094":"NABILA AYU SAHARA","08051382530095":"NATASYA AFRILIA","08051382530096":"MUAMMAR GHAZA",
+"08051382530097":"SALSABILLA","08051382530098":"NADYAH DWI PRATIWI","08051382530099":"AHMAD FAWWAZ ROFI'IE",
+"08051382530100":"ANANDA RIZKI","08051382530101":"RISQIA","08051382530102":"IMEU NURFITA",
+"08051382530103":"HELDANDA","08051382530104":"MUHAMMAD RIZQI DZAKI KHALID","08051382530105":"CAREN AUFALLIA",
+"08051382530106":"KEISHA FATHINAH ANWAR","08051382530107":"M. RICO FATURRAHMAN","08051382530108":"KHARISMA ALMAGFIRA",
+"08051382530109":"RIMA AF IDATUSSALMA","08051382530110":"ZABIL RABALAK","08051382530111":"ZAHWA IVANKA",
+"08051382530112":"M. AGUNG BUPA","08051382530113":"M. WAHYU","08051382530114":"MUHAMMAD RIDHO PRATAMA",
+"08051382530115":"DINDA OKTARINI ADELIA","08051382530116":"AL HANIF ASHABILLAH","08051382530117":"CARLOS MARSELINUS SAMOSIR",
+"08051382530118":"TIA RAHMADANI","08051382530119":"SAPRI KARDAL YONGKI","08051382530120":"MUHAMMAD KURNIAWAN SAPUTRA",
+"08051382530121":"NABILA","08051382530122":"AJENG DAVINA MAHARANI NASUTION","08051382530123":"GOHAN RAJAGUKGUK",
+"08051382530124":"RATASYA PUTRI","08051382530125":"RADEN SABDA SAMUDRA","08051382530126":"HAGAI DWI PUTRA",
+"08051382530127":"MARCCEL ADITYA","08051382530128":"NADYA FEBRIANTI","08051382530129":"DIVINE SABAR SAPUTRA LIMBONG"
+};
+
+const GAME_PASSWORD = "UNSRI";
+const GAME_DURATION = 60; // detik (sudah direvisi dari 45 dtk -> 1 menit)
+
+/* Ganti path ini nanti dengan aset gambar asli kamu */
+const ZONE_BG = {
+  antartika:  "img/bg_antartika.jpg",
+  madagaskar: "img/bg_madagaskar.jpg",
+  australia:  "img/bg_australia.jpg"
+};
+const ZONE_NAME = {
+  antartika: "Zona Antartika",
+  madagaskar: "Zona Madagaskar",
+  australia: "Zona Australia"
+};
+
+/* ============ 30 SOAL SEJARAH AKUSTIK LAUT ============ */
+const ALL_QUESTIONS = [
+  {
+    text: "Akustik bawah air adalah ilmu yang mempelajari...",
+    options: ["Perambatan gelombang suara di dalam air", "Pergerakan arus laut", "Distribusi salinitas laut"],
+    correct: "Perambatan gelombang suara di dalam air"
+  },
+  {
+    text: "Siapakah ilmuwan yang dianggap sebagai pelopor pengembangan sonar pada Perang Dunia I?",
+    options: ["Paul Langevin", "Albert Einstein", "Heinrich Hertz"],
+    correct: "Paul Langevin"
+  },
+  {
+    text: "Kecepatan rambat suara di air laut rata-rata adalah sekitar...",
+    options: ["1.500 m/s", "340 m/s", "3.000 m/s"],
+    correct: "1.500 m/s"
+  },
+  {
+    text: "SONAR adalah singkatan dari...",
+    options: ["Sound Navigation and Ranging", "Sound Ocean Navigation and Research", "Submarine Ocean Navigation Array"],
+    correct: "Sound Navigation and Ranging"
+  },
+  {
+    text: "Pada tahun berapa Paul Langevin berhasil mendeteksi objek bawah air menggunakan gelombang ultrasonik?",
+    options: ["1917", "1905", "1939"],
+    correct: "1917"
+  },
+  {
+    text: "Faktor utama yang memengaruhi kecepatan suara di laut adalah...",
+    options: ["Suhu, salinitas, dan tekanan", "Arus, angin, dan gelombang", "Kedalaman, warna air, dan cahaya"],
+    correct: "Suhu, salinitas, dan tekanan"
+  },
+  {
+    text: "Lapisan laut yang berfungsi sebagai 'jalan raya' perambatan suara jarak jauh disebut...",
+    options: ["SOFAR Channel", "Thermocline", "Halocline"],
+    correct: "SOFAR Channel"
+  },
+  {
+    text: "Efek Doppler dalam akustik bawah air merujuk pada...",
+    options: ["Perubahan frekuensi suara akibat gerak relatif sumber dan penerima", "Pelemahan amplitudo gelombang suara", "Pembiasan gelombang suara oleh lapisan termoklin"],
+    correct: "Perubahan frekuensi suara akibat gerak relatif sumber dan penerima"
+  },
+  {
+    text: "Teknologi akustik pertama kali digunakan dalam bidang militer terutama untuk...",
+    options: ["Mendeteksi kapal selam musuh", "Navigasi kapal permukaan", "Komunikasi bawah air"],
+    correct: "Mendeteksi kapal selam musuh"
+  },
+  {
+    text: "Echosounder (gema suara) digunakan dalam perikanan untuk...",
+    options: ["Mendeteksi kawanan ikan di bawah kapal", "Mengukur suhu air laut", "Mengambil sampel plankton"],
+    correct: "Mendeteksi kawanan ikan di bawah kapal"
+  },
+  {
+    text: "Fenomena 'shadow zone' dalam akustik bawah air terjadi karena...",
+    options: ["Pembiasan suara oleh gradien kecepatan sehingga ada zona yang tidak terjangkau sinyal", "Penyerapan suara oleh plankton dalam jumlah besar", "Pemantulan total suara oleh dasar laut"],
+    correct: "Pembiasan suara oleh gradien kecepatan sehingga ada zona yang tidak terjangkau sinyal"
+  },
+  {
+    text: "Dalam oseanografi, ADCPs (Acoustic Doppler Current Profilers) digunakan untuk...",
+    options: ["Mengukur profil arus laut secara vertikal", "Mendeteksi gempa bumi bawah laut", "Mengukur kedalaman laut"],
+    correct: "Mengukur profil arus laut secara vertikal"
+  },
+  {
+    text: "Termokline adalah lapisan laut dimana...",
+    options: ["Suhu turun drastis seiring kedalaman", "Salinitas meningkat tajam", "Oksigen terlarut mencapai maksimum"],
+    correct: "Suhu turun drastis seiring kedalaman"
+  },
+  {
+    text: "Multibeam echosounder digunakan dalam oseanografi untuk...",
+    options: ["Memetakan topografi dasar laut secara detail", "Mengukur kecepatan arus dalam", "Mendeteksi tumpahan minyak bawah laut"],
+    correct: "Memetakan topografi dasar laut secara detail"
+  },
+  {
+    text: "Paus dan lumba-lumba menggunakan kemampuan akustik alami mereka yang disebut...",
+    options: ["Ekolokasi", "Fotoresepsi", "Magnetoresepsi"],
+    correct: "Ekolokasi"
+  },
+  {
+    text: "Passive sonar berbeda dari active sonar karena...",
+    options: ["Hanya mendengarkan suara tanpa memancarkan sinyal", "Memancarkan gelombang dan menunggu pantulan", "Menggunakan frekuensi radio bukan suara"],
+    correct: "Hanya mendengarkan suara tanpa memancarkan sinyal"
+  },
+  {
+    text: "Bencana Titanic (1912) menjadi salah satu pendorong pengembangan sonar karena...",
+    options: ["Kapal tidak mampu mendeteksi gunung es di depannya", "Sinyal radio tidak berfungsi di laut dalam", "Kecepatan kapal melebihi batas aman"],
+    correct: "Kapal tidak mampu mendeteksi gunung es di depannya"
+  },
+  {
+    text: "Frekuensi ultrasonik yang umum digunakan dalam sonar perikanan adalah...",
+    options: ["Di atas 20.000 Hz", "Di bawah 20 Hz", "Antara 20-200 Hz"],
+    correct: "Di atas 20.000 Hz"
+  },
+  {
+    text: "SOFAR Channel berada pada kedalaman sekitar...",
+    options: ["700–1.200 meter", "10–50 meter", "4.000–6.000 meter"],
+    correct: "700–1.200 meter"
+  },
+  {
+    text: "Keunggulan utama akustik dibanding metode optik di bawah air adalah...",
+    options: ["Suara merambat jauh lebih jauh di air daripada cahaya", "Akustik lebih murah dari kamera bawah air", "Suara tidak terpengaruh oleh suhu air"],
+    correct: "Suara merambat jauh lebih jauh di air daripada cahaya"
+  },
+  {
+    text: "Akustik bawah air mulai berkembang pesat pada era...",
+    options: ["Perang Dunia I dan II", "Revolusi Industri", "Era Renaisans"],
+    correct: "Perang Dunia I dan II"
+  },
+  {
+    text: "Keterbatasan utama active sonar dalam konteks militer adalah...",
+    options: ["Mengungkap posisi kapal/kapal selam yang memancarkan sinyal", "Tidak bisa mendeteksi objek bergerak", "Hanya efektif di perairan dangkal"],
+    correct: "Mengungkap posisi kapal/kapal selam yang memancarkan sinyal"
+  },
+  {
+    text: "Suara infrasonik (frekuensi sangat rendah) di laut dimanfaatkan untuk...",
+    options: ["Komunikasi jarak sangat jauh antar kapal selam", "Mendeteksi kawanan ikan kecil", "Mengukur suhu permukaan laut"],
+    correct: "Komunikasi jarak sangat jauh antar kapal selam"
+  },
+  {
+    text: "Prinsip kerja echosounder adalah...",
+    options: ["Memancarkan gelombang suara ke bawah dan mengukur waktu pantulannya", "Mengukur tekanan air di berbagai kedalaman", "Mendeteksi perubahan medan magnet dasar laut"],
+    correct: "Memancarkan gelombang suara ke bawah dan mengukur waktu pantulannya"
+  },
+  {
+    text: "Dalam bidang militer, sistem SOSUS (Sound Surveillance System) berfungsi sebagai...",
+    options: ["Jaringan hidrofon bawah laut untuk memantau kapal selam", "Sistem rudal bawah laut", "Radar bawah air berbasis gelombang elektromagnetik"],
+    correct: "Jaringan hidrofon bawah laut untuk memantau kapal selam"
+  },
+  {
+    text: "Salah satu dampak negatif sonar militer bagi lingkungan laut adalah...",
+    options: ["Mengganggu dan melukai mamalia laut seperti paus", "Meningkatkan suhu air laut lokal", "Merusak terumbu karang secara langsung"],
+    correct: "Mengganggu dan melukai mamalia laut seperti paus"
+  },
+  {
+    text: "Kecepatan suara di air laut lebih tinggi dibanding di udara karena...",
+    options: ["Air memiliki densitas dan kekakuan elastis yang lebih tinggi", "Air lebih hangat dari udara", "Molekul air lebih ringan dari molekul udara"],
+    correct: "Air memiliki densitas dan kekakuan elastis yang lebih tinggi"
+  },
+  {
+    text: "Tomografi akustik laut digunakan untuk...",
+    options: ["Memantau perubahan suhu dan arus laut dalam skala besar", "Mendeteksi kapal selam musuh", "Mengidentifikasi jenis ikan berdasarkan suaranya"],
+    correct: "Memantau perubahan suhu dan arus laut dalam skala besar"
+  },
+  {
+    text: "Hidrofon adalah perangkat yang berfungsi sebagai...",
+    options: ["Mikrofon bawah air yang mendeteksi gelombang suara", "Alat pengukur salinitas air laut", "Sensor tekanan untuk mengukur kedalaman"],
+    correct: "Mikrofon bawah air yang mendeteksi gelombang suara"
+  },
+  {
+    text: "Peneliti yang pertama kali mengukur kecepatan suara di air tawar adalah...",
+    options: ["Jean-Daniel Colladon dan Charles Sturm (1827)", "Paul Langevin (1917)", "Lord Rayleigh (1896)"],
+    correct: "Jean-Daniel Colladon dan Charles Sturm (1827)"
+  }
+];
+
+let questionPool = [];
+
+function generateMathQuestion() {
+  if (questionPool.length === 0) {
+    questionPool = shuffle(ALL_QUESTIONS.slice());
+  }
+  const q = questionPool.pop();
+  return { text: q.text, options: shuffle(q.options.slice()), correct: q.correct };
+}
+
+function randInt(min, max) { return Math.floor(Math.random() * (max - min + 1)) + min; }
+function shuffle(arr) {
+  const a = arr.slice();
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+
+/* ============ OBJEK LAUT PER ZONA (tema beda, nilai & peluang SETARA) ============ */
+/* 12 tingkatan per zona, rentang harga & bobot peluang identik di semua zona —
+   jadi makin banyak variasi tapi tetap adil, cuma temanya disesuaikan lokasi. */
+const SEA_OBJECTS_BY_ZONE = {
+  antartika: [
+    { name: "Paus purba membeku",     icon: "🐋", min: 800, max: 1200 },
+    { name: "Meteor kutub",           icon: "☄️", min: 600, max: 850  },
+    { name: "Kapal riset karam",      icon: "🚢", min: 450, max: 650  },
+    { name: "Kristal es abadi",       icon: "💎", min: 350, max: 500  },
+    { name: "Mutiara es",             icon: "🦪", min: 270, max: 380  },
+    { name: "Kerangka anjing laut",   icon: "🦴", min: 200, max: 280  },
+    { name: "Karang laut dalam",      icon: "🪸", min: 150, max: 210  },
+    { name: "Ikan es raksasa",        icon: "🐟", min: 100, max: 150  },
+    { name: "Ikan es langka",         icon: "🐠", min: 60,  max: 100  },
+    { name: "Pecahan gletser",        icon: "🧊", min: 30,  max: 60   },
+    { name: "Kerikil es",             icon: "🪨", min: 10,  max: 30   },
+    { name: "Sampah plastik",         icon: "🗑️", min: 0,   max: 8    }
+  ],
+  madagaskar: [
+    { name: "Permata baobab laut",    icon: "💠", min: 800, max: 1200 },
+    { name: "Peti harta karun",       icon: "💰", min: 600, max: 850  },
+    { name: "Kapal rempah karam",     icon: "🚢", min: 450, max: 650  },
+    { name: "Mutiara hitam",          icon: "🦪", min: 350, max: 500  },
+    { name: "Batu vanili laut",       icon: "💎", min: 270, max: 380  },
+    { name: "Kerang raksasa",         icon: "🐚", min: 200, max: 280  },
+    { name: "Karang pelangi",         icon: "🪸", min: 150, max: 210  },
+    { name: "Ikan badut langka",      icon: "🐠", min: 100, max: 150  },
+    { name: "Ikan tropis langka",     icon: "🐟", min: 60,  max: 100  },
+    { name: "Kerang hias",            icon: "🐚", min: 30,  max: 60   },
+    { name: "Pasir emas",             icon: "🪙", min: 10,  max: 30   },
+    { name: "Sampah plastik",         icon: "🗑️", min: 0,   max: 8    }
+  ],
+  australia: [
+    { name: "Gigi megalodon",         icon: "🦈", min: 800, max: 1200 },
+    { name: "Opal laut",              icon: "🔷", min: 600, max: 850  },
+    { name: "Kapal karam kolonial",   icon: "🚢", min: 450, max: 650  },
+    { name: "Kerang mutiara raksasa", icon: "🦪", min: 350, max: 500  },
+    { name: "Batu boomerang laut",    icon: "🪃", min: 270, max: 380  },
+    { name: "Fosil karang purba",     icon: "🦴", min: 200, max: 280  },
+    { name: "Karang barrier reef",    icon: "🪸", min: 150, max: 210  },
+    { name: "Ikan buntal langka",     icon: "🐡", min: 100, max: 150  },
+    { name: "Ikan karang langka",     icon: "🐠", min: 60,  max: 100  },
+    { name: "Batu karang hanyut",     icon: "🪨", min: 30,  max: 60   },
+    { name: "Pasir merah",            icon: "🟠", min: 10,  max: 30   },
+    { name: "Sampah plastik",         icon: "🗑️", min: 0,   max: 8    }
+  ]
+};
+function rollObject() {
+  const objects = SEA_OBJECTS_BY_ZONE[state.zone] || SEA_OBJECTS_BY_ZONE.antartika;
+  // bobot: makin langka (indeks kecil) makin jarang muncul, sampah paling sering
+  const weightCounts = [1,1,1,1,2,2,2,3,3,3,4,5];
+  const weighted = [];
+  objects.forEach((obj, i) => {
+    for (let k = 0; k < weightCounts[i]; k++) weighted.push(obj);
+  });
+  const obj = weighted[randInt(0, weighted.length - 1)];
+  const value = randInt(obj.min, obj.max);
+  return { ...obj, value };
+}
+
+/* ============ AUDIO (Web Audio API, tanpa file eksternal) ============ */
+let audioCtx = null;
+function getAudioCtx() {
+  if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  return audioCtx;
+}
+function playSonarPing() {
+  try {
+    const ctx = getAudioCtx();
+    const now = ctx.currentTime;
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = "sine";
+    osc.frequency.setValueAtTime(1200, now);
+    osc.frequency.exponentialRampToValueAtTime(300, now + 0.7);
+    gain.gain.setValueAtTime(0.0001, now);
+    gain.gain.exponentialRampToValueAtTime(0.35, now + 0.03);
+    gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.8);
+    osc.connect(gain).connect(ctx.destination);
+    osc.start(now);
+    osc.stop(now + 0.85);
+  } catch (e) {}
+}
+function playWrongBuzz() {
+  try {
+    const ctx = getAudioCtx();
+    const now = ctx.currentTime;
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = "sawtooth";
+    osc.frequency.setValueAtTime(160, now);
+    gain.gain.setValueAtTime(0.0001, now);
+    gain.gain.exponentialRampToValueAtTime(0.25, now + 0.02);
+    gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.35);
+    osc.connect(gain).connect(ctx.destination);
+    osc.start(now);
+    osc.stop(now + 0.4);
+  } catch (e) {}
+}
+
+/* ============ STATE ============ */
+let state = {
+  nim: null,
+  score: 0,
+  zone: null,
+  timeLeft: GAME_DURATION,
+  timerId: null,
+  locked: false,
+  currentQ: null
+};
+
+/* ============ NAV HELPERS ============ */
+function showScreen(id) {
+  document.querySelectorAll(".screen").forEach(s => s.classList.remove("active"));
+  document.getElementById(id).classList.add("active");
+}
+
+/* ============ LOGIN ============ */
+const inputNim = document.getElementById("inputNim");
+const studentTag = document.getElementById("studentTag");
+const loginError = document.getElementById("loginError");
+
+inputNim.addEventListener("input", () => {
+  loginError.textContent = "";
+  const val = inputNim.value.trim();
+  studentTag.textContent = STUDENT_NAMES[val] ? ("Halo, " + STUDENT_NAMES[val]) : "";
+});
+
+document.getElementById("btnLogin").addEventListener("click", () => {
+  const nim = inputNim.value.trim();
+  const pw = document.getElementById("inputPw").value.trim();
+
+  if (!nim) {
+    loginError.textContent = "Masukkan NIM kamu terlebih dahulu.";
+    return;
+  }
+  if (!VALID_NIMS.includes(nim)) {
+    loginError.textContent = "NIM tidak terdaftar.";
+    return;
+  }
+  if (pw !== GAME_PASSWORD) {
+    loginError.textContent = "Password salah.";
+    return;
+  }
+  loginError.textContent = "";
+  state.nim = nim;
+  state.name = STUDENT_NAMES[nim] || nim;
+  document.getElementById("welcomeName").textContent = state.name;
+  showScreen("screen-menu");
+});
+
+/* ============ MENU ============ */
+document.getElementById("btnToMap").addEventListener("click", () => {
+  showScreen("screen-map");
+});
+document.getElementById("btnLogout").addEventListener("click", () => {
+  state.nim = null;
+  inputNim.value = "";
+  document.getElementById("inputPw").value = "";
+  studentTag.textContent = "";
+  showScreen("screen-login");
+});
+
+/* ============ MAP ============ */
+function selectZone(zoneKey) {
+  state.zone = zoneKey;
+  startGame();
+}
+document.getElementById("pinAntartika").addEventListener("click", () => selectZone("antartika"));
+document.getElementById("pinMadagaskar").addEventListener("click", () => selectZone("madagaskar"));
+document.getElementById("pinAustralia").addEventListener("click", () => selectZone("australia"));
+
+/* ============ GAME ============ */
+const timerVal = document.getElementById("timerVal");
+const scoreVal = document.getElementById("scoreVal");
+const qText = document.getElementById("qText");
+const optRow = document.getElementById("optRow");
+const zoneBgImg = document.getElementById("zoneBgImg");
+const sonarRing = document.getElementById("sonarRing");
+const objectPopup = document.getElementById("objectPopup");
+const objIcon = document.getElementById("objIcon");
+const objVal = document.getElementById("objVal");
+const feedbackFlash = document.getElementById("feedbackFlash");
+
+function formatRp(n) {
+  return "Rp " + n.toLocaleString("id-ID");
+}
+
+function startGame() {
+  state.score = 0;
+  state.timeLeft = GAME_DURATION;
+  state.locked = false;
+  scoreVal.textContent = formatRp(0);
+  timerVal.textContent = state.timeLeft;
+  zoneBgImg.src = ZONE_BG[state.zone] || "img/bg_placeholder.jpg";
+
+  showScreen("screen-game");
+  nextQuestion();
+
+  clearInterval(state.timerId);
+  state.timerId = setInterval(() => {
+    state.timeLeft--;
+    timerVal.textContent = state.timeLeft;
+    if (state.timeLeft <= 0) {
+      clearInterval(state.timerId);
+      endGame();
+    }
+  }, 1000);
+}
+
+function nextQuestion() {
+  state.currentQ = generateMathQuestion();
+  qText.textContent = state.currentQ.text;
+  optRow.innerHTML = "";
+  state.currentQ.options.forEach(opt => {
+    const btn = document.createElement("button");
+    btn.className = "optBtn";
+    btn.textContent = opt;
+    btn.addEventListener("click", () => handleAnswer(opt, btn));
+    optRow.appendChild(btn);
+  });
+  state.locked = false;
+}
+
+function handleAnswer(selected, btnEl) {
+  if (state.locked || state.timeLeft <= 0) return;
+  state.locked = true;
+
+  const isCorrect = selected === state.currentQ.correct;
+  const allBtns = optRow.querySelectorAll(".optBtn");
+  allBtns.forEach(b => b.disabled = true);
+
+  if (isCorrect) {
+    btnEl.classList.add("correct");
+    flashFeedback("right");
+    fireSonar();
+  } else {
+    btnEl.classList.add("wrong");
+    flashFeedback("wrong");
+    playWrongBuzz();
+    setTimeout(() => {
+      if (state.timeLeft > 0) nextQuestion();
+    }, 3000);
+  }
+}
+
+function flashFeedback(type) {
+  feedbackFlash.className = "feedbackFlash " + type;
+  setTimeout(() => { feedbackFlash.className = "feedbackFlash"; }, 500);
+}
+
+function fireSonar() {
+  playSonarPing();
+  sonarRing.classList.remove("ping");
+  void sonarRing.offsetWidth;
+  sonarRing.classList.add("ping");
+
+  setTimeout(() => {
+    const obj = rollObject();
+    state.score += obj.value;
+    scoreVal.textContent = formatRp(state.score);
+
+    objIcon.textContent = obj.icon;
+    objVal.textContent = (obj.value > 0 ? "+" : "") + formatRp(obj.value) + " (" + obj.name + ")";
+    objectPopup.classList.remove("show");
+    void objectPopup.offsetWidth;
+    objectPopup.classList.add("show");
+  }, 500);
+
+  setTimeout(() => {
+    if (state.timeLeft > 0) nextQuestion();
+  }, 900);
+}
+
+function endGame() {
+  document.getElementById("finalScore").textContent = formatRp(state.score);
+  document.getElementById("finalSub").textContent =
+    "Total nilai objek di " + (ZONE_NAME[state.zone] || "") + " — " + (state.name || state.nim);
+  showScreen("screen-result");
+}
+
+document.getElementById("btnPlayAgain").addEventListener("click", () => {
+  showScreen("screen-map");
+});
+document.getElementById("btnBackMenu").addEventListener("click", () => {
+  showScreen("screen-menu");
+});
+</script>
+</body>
+</html>
